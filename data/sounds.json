@@ -1,0 +1,291 @@
+{
+  "sounds": [
+    {
+      "name": "Welcome",
+      "notes": [
+        262,
+        330,
+        392,
+        523
+      ],
+      "durations": [
+        8,
+        8,
+        8,
+        4
+      ]
+    },
+    {
+      "name": "Doorbell",
+      "notes": [
+        659,
+        523
+      ],
+      "durations": [
+        4,
+        2
+      ]
+    },
+    {
+      "name": "Alert",
+      "notes": [
+        880,
+        0,
+        880,
+        0,
+        880
+      ],
+      "durations": [
+        8,
+        16,
+        8,
+        16,
+        8
+      ]
+    },
+    {
+      "name": "Cute Connection",
+      "notes": [
+        659,
+        1319,
+        1760
+      ],
+      "durations": [
+        20,
+        18,
+        16
+      ]
+    },
+    {
+      "name": "Cute Disconnection",
+      "notes": [
+        659,
+        1760,
+        1319
+      ],
+      "durations": [
+        20,
+        18,
+        20
+      ]
+    },
+    {
+      "name": "Cute Mode 3",
+      "notes": [
+        1319,
+        1568,
+        2349
+      ],
+      "durations": [
+        20,
+        20,
+        3
+      ]
+    },
+    {
+      "name": "Asa branca",
+      "file": "/songs/asabranca.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Baby Elephant Walk",
+      "file": "/songs/babyelephantwalk.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Bloody Tears from Castlevania II",
+      "file": "/songs/bloodytears.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Brahms' Lullaby (Wiegenlied) -  Johannes Brahms",
+      "file": "/songs/brahmslullaby.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Pachelbel's Canon",
+      "file": "/songs/cannonind.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Cantina band song from Star Wars",
+      "file": "/songs/cantinaband.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "At Doom's Gate (H1M1)",
+      "file": "/songs/doom.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Fur Elise",
+      "file": "/songs/furelise.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Game of Thrones",
+      "file": "/songs/gameofthrones.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Green Hill Zone's theme - Sonic the Hedgehog",
+      "file": "/songs/greenhill.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Greensleves - Traditional English folk song",
+      "file": "/songs/greensleeves.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Happy Birthday",
+      "file": "/songs/happybirthday.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Hedwig's theme - Harry Potter",
+      "file": "/songs/harrypotter.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Imperial March - Star Wars",
+      "file": "/songs/imperialmarch.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Jigglypuff's Song",
+      "file": "/songs/jigglypuffsong.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Keyboard cat",
+      "file": "/songs/keyboardcat.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "We Wish You a Merry Christmas - Traditional Christmas song",
+      "file": "/songs/merrychristmas.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Mii Channel's theme",
+      "file": "/songs/miichannel.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Minuet in G - C. Petzold",
+      "file": "/songs/minuetg.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Never Gonna Give you Up",
+      "file": "/songs/nevergonnagiveyouup.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Nokia Tune",
+      "file": "/songs/nokia.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Ode to Joy - Beethoven's Symphony No. 9",
+      "file": "/songs/odetojoy.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Pacman Intro Theme",
+      "file": "/songs/pacman.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Pink Panther theme",
+      "file": "/songs/pinkpanther.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Prince Igor - Borodin",
+      "file": "/songs/princeigor.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Professor Layton's theme",
+      "file": "/songs/professorlayton.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Pulo da Gaita - O Auto da Compadecida",
+      "file": "/songs/pulodagaita.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Silent Night",
+      "file": "/songs/silentnight.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Song of storms - Legend of Zelda",
+      "file": "/songs/songofstorms.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Start trek Intro",
+      "file": "/songs/startrekintro.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Star Wars theme",
+      "file": "/songs/starwars.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Super Mario Bros - Overworld theme",
+      "file": "/songs/supermariobros.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Take on me",
+      "file": "/songs/takeonme.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Tetris theme - (Korobeiniki)",
+      "file": "/songs/tetris.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Bach - Badinerie",
+      "file": "/songs/thebadinerie.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "The Godfather",
+      "file": "/songs/thegodfather.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "The lick",
+      "file": "/songs/thelick.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "The Lion sleeps tonight (A-weema-weh)",
+      "file": "/songs/thelionsleepstonight.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Vampire Killer - Castlevania series",
+      "file": "/songs/vampirekiller.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "Zelda's Lullaby",
+      "file": "/songs/zeldaslullaby.json",
+      "source": "robsoncouto/arduino-songs"
+    },
+    {
+      "name": "The legend of Zelda theme",
+      "file": "/songs/zeldatheme.json",
+      "source": "robsoncouto/arduino-songs"
+    }
+  ]
+}
