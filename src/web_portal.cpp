@@ -62,6 +62,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
     button { margin-top: 1rem; background: #38bdf8; color: #082f49;
              font-weight: 700; cursor: pointer; }
     button:disabled { opacity: .55; cursor: wait; }
+    .volume-label { margin-top: 1rem; }
+    #volume { width: 100%; margin: 0; accent-color: #38bdf8; }
     #status { min-height: 1.5em; color: #bae6fd; }
     h2 { margin-top: 2rem; }
     table { width: 100%; border-collapse: collapse; }
@@ -86,6 +88,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
     <label for="sound">Choose a sound</label>
     <select id="sound"><option>Loading sounds…</option></select>
     <button id="play" disabled>Play</button>
+    <label for="volume" class="volume-label">Volume <span id="volume-value">40</span>%</label>
+    <input type="range" id="volume" min="0" max="100" value="40">
     <p id="status"></p>
     <h2>Files <small id="directory-path">/</small></h2>
     <table>
@@ -102,6 +106,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
   <script>
     const sound = document.querySelector('#sound');
     const play = document.querySelector('#play');
+    const volume = document.querySelector('#volume');
+    const volumeValue = document.querySelector('#volume-value');
     const status = document.querySelector('#status');
     const buildTime = document.querySelector('#build-time');
     const files = document.querySelector('#files');
@@ -163,8 +169,36 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
       }
     }
 
-    play.addEventListener('click', async () => {
-      play.disabled = true;
+    // One button that toggles: it reads "Play" when idle and "Stop" while a
+    // sound is playing.
+    let statusPoll = null;
+    let playing = false;
+
+    function setPlaying(isPlaying) {
+      playing = isPlaying;
+      play.textContent = isPlaying ? 'Stop' : 'Play';
+    }
+
+    async function pollStatus() {
+      try {
+        const response = await fetch('/api/status');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data.playing) {
+          clearInterval(statusPoll);
+          statusPoll = null;
+          setPlaying(false);
+          status.textContent = 'Finished playing ' + sound.value + '.';
+        }
+      } catch (_) {
+        // transient error while the buzzer holds the CPU; keep polling
+      }
+    }
+
+    async function startPlayback() {
+      // Playback is non-blocking: the request returns at once and the device
+      // plays in the background, so poll for completion to reset the button.
+      setPlaying(true);
       status.textContent = 'Playing…';
       try {
         const response = await fetch('/api/play', {
@@ -173,13 +207,62 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
           body: new URLSearchParams({name: sound.value})
         });
         if (!response.ok) throw new Error(await response.text());
-        status.textContent = 'Finished playing ' + sound.value + '.';
+        if (statusPoll) clearInterval(statusPoll);
+        statusPoll = setInterval(pollStatus, 400);
       } catch (error) {
+        setPlaying(false);
         status.textContent = 'Could not play sound: ' + error.message;
-      } finally {
-        play.disabled = false;
+      }
+    }
+
+    async function stopPlayback() {
+      status.textContent = 'Stopping…';
+      try {
+        const response = await fetch('/api/stop', {method: 'POST'});
+        if (!response.ok) throw new Error(await response.text());
+      } catch (error) {
+        status.textContent = 'Could not stop: ' + error.message;
+      }
+      // pollStatus() sees playing=false and flips the button back to Play.
+    }
+
+    play.addEventListener('click', () => {
+      if (playing) {
+        stopPlayback();
+      } else {
+        startPlayback();
       }
     });
+
+    async function loadVolume() {
+      try {
+        const response = await fetch('/api/volume');
+        if (!response.ok) return;
+        const data = await response.json();
+        volume.value = data.volume;
+        volumeValue.textContent = data.volume;
+      } catch (_) {
+        // leave the slider at its default
+      }
+    }
+
+    function sendVolume() {
+      fetch('/api/volume', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({value: volume.value})
+      }).catch(() => {});
+    }
+
+    // Update the label on every drag, but throttle the POSTs so dragging the
+    // slider does not flood the device; 'change' guarantees the final value lands.
+    let volumeThrottle = null;
+    volume.addEventListener('input', () => {
+      volumeValue.textContent = volume.value;
+      if (volumeThrottle) return;
+      volumeThrottle = setTimeout(() => { volumeThrottle = null; sendVolume(); }, 80);
+    });
+    volume.addEventListener('change', sendVolume);
 
     async function displayFile(name) {
       viewer.classList.add('open');
@@ -276,6 +359,7 @@ const char INDEX_HTML[] PROGMEM = R"HTML(
     loadSounds();
     loadFiles('/');
     loadBuildTime();
+    loadVolume();
   </script>
 </body>
 </html>
@@ -296,11 +380,41 @@ void handlePlay() {
     return;
   }
 
-  if (!SoundPlayer::select(webServer.arg("name")) ||
-      !SoundPlayer::playSelected()) {
+  // Queue the sound and return immediately. Playback is driven from loop() so
+  // this request does not block, which lets the page send /api/stop while the
+  // sound is still playing.
+  if (!SoundPlayer::requestPlay(webServer.arg("name"))) {
     webServer.send(404, "text/plain", "Sound not found or sounds.json is invalid");
     return;
   }
+  webServer.send(200, "application/json", "{\"ok\":true}");
+}
+
+void handleStop() {
+  SoundPlayer::stop();
+  webServer.send(200, "application/json", "{\"ok\":true}");
+}
+
+void handleStatus() {
+  String json = "{\"playing\":";
+  json += SoundPlayer::isPlaying() ? "true" : "false";
+  json += "}";
+  webServer.send(200, "application/json", json);
+}
+
+void handleGetVolume() {
+  String json = "{\"volume\":";
+  json += SoundPlayer::getVolume();
+  json += "}";
+  webServer.send(200, "application/json", json);
+}
+
+void handleSetVolume() {
+  if (!webServer.hasArg("value")) {
+    webServer.send(400, "text/plain", "Missing volume value");
+    return;
+  }
+  SoundPlayer::setVolume(webServer.arg("value").toInt());
   webServer.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -458,6 +572,10 @@ void begin() {
   webServer.on("/api/sounds", HTTP_GET, handleSoundList);
   webServer.on("/api/select", HTTP_POST, handleSelect);
   webServer.on("/api/play", HTTP_POST, handlePlay);
+  webServer.on("/api/stop", HTTP_POST, handleStop);
+  webServer.on("/api/status", HTTP_GET, handleStatus);
+  webServer.on("/api/volume", HTTP_GET, handleGetVolume);
+  webServer.on("/api/volume", HTTP_POST, handleSetVolume);
   webServer.on("/api/build", HTTP_GET, handleBuildTime);
   webServer.on("/api/files", HTTP_GET, handleListFiles);
   webServer.on("/api/file", HTTP_GET, handleReadFile);

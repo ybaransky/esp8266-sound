@@ -63,6 +63,42 @@ D8(GPIO15) --[1k]--+--------- B     C   NPN transistor
                   GND              GND
 ```
 
+## Volume: Potentiometer On VCC (hardware volume control)
+
+The buzzer's loudness follows the module's supply voltage: the module drives the
+buzzer between GND and VCC, so a lower VCC means a smaller swing and a quieter
+tone. Wire a 3-pin potentiometer as a voltage divider and feed its wiper to the
+module's VCC to make that voltage adjustable.
+
+This replaces the `Module VCC -> 3.3V` connection in the diagrams above.
+
+```text
+        3.3V
+         |
+        .-.
+        | |
+        | |  potentiometer (1k - 10k, linear)
+        |W|>------- Module VCC      (W = wiper, the middle pin)
+        | |
+        | |
+        '-'
+         |
+        GND
+```
+
+- Outer pins go to 3.3V and GND; the middle pin (wiper) goes to Module VCC.
+- Wiper toward 3.3V = louder, toward GND = quieter.
+- Value: 1k to 10k linear. A smaller value holds the voltage steadier under the
+  buzzer's current pulses but wastes more standby current (3.3V / 1k = 3.3mA);
+  a larger value wastes less but sags more. 10k is a fine starting point.
+- Keep the top of the pot on **3.3V, not 5V** -- do not overdrive the module.
+- The D8 NPN buffer is unchanged. The pot only touches the module's VCC rail;
+  GND, S, and the transistor stay exactly as wired above.
+
+If you use this, set `USE_SOFTWARE_VOLUME` to `0` in
+[src/sound_player.cpp](src/sound_player.cpp) so the firmware plays at full duty.
+Otherwise the software attenuation and the pot stack on top of each other.
+
 ## Why The Module Is Active LOW
 
 This section is about the PNP inside the module, not the NPN you add.
@@ -113,6 +149,7 @@ at the same frequency. It sounds identical.
 - 10k base pulldown resistor
 - 2N2222, PN2222, BC547, or S8050 NPN transistor
   (nothing to buy for the PNP, it is already on the module)
+- optional 1k - 10k linear potentiometer for hardware volume on VCC
 
 A 2N7000 MOSFET works too: gate to D8, drain to module S, source to GND,
 10k from gate to GND, and no 1k needed.

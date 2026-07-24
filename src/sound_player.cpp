@@ -3,11 +3,32 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+#include "hardware.h"
 #include "log.h"
+
+// ---------------------------------------------------------------------------
+// Software volume control
+//
+// When enabled, notes are produced with a PWM square wave whose duty cycle
+// sets the loudness, instead of tone(). A square wave is loudest at 50% duty;
+// lowering the duty makes it quieter at the same pitch.
+//
+// To DISABLE this and control volume in hardware instead (option 2: lower the
+// module's supply voltage, see WIRING.md), set USE_SOFTWARE_VOLUME to 0. That
+// reverts the player to plain full-volume tone(), so a hardware divider is the
+// only thing affecting loudness.
+#define USE_SOFTWARE_VOLUME 1
 
 namespace {
 
-const int BUZZER_PIN = D8;
+const int PWM_RANGE = 255;
+const int MAX_DUTY = PWM_RANGE / 2;  // 50% duty cycle = loudest
+int volumePercent = 40;              // 0..100, settable at runtime from the web UI
+bool toneSounding = false;           // true while a note is actively driven
+
+int currentDuty() {
+  return (constrain(volumePercent, 0, 100) * MAX_DUTY) / 100;
+}
 const char SOUND_FILE[] = "/sounds.json";
 const char DEFAULT_SOUNDS[] PROGMEM =
     "{\"sounds\":["
@@ -24,6 +45,8 @@ const char DEFAULT_SOUNDS[] PROGMEM =
     "]}";
 bool filesystemMounted = false;
 String selectedSoundName;
+String pendingSoundName;
+bool playPending = false;
 bool playing = false;
 bool stopRequested = false;
 SoundPlayer::ServiceCallback serviceCallback = nullptr;
@@ -114,6 +137,26 @@ bool loadSoundDocument(JsonDocument &document) {
   return true;
 }
 
+void startTone(int frequency) {
+  toneSounding = true;
+#if USE_SOFTWARE_VOLUME
+  analogWriteFreq(frequency);
+  analogWrite(BUZZER_PIN, currentDuty());
+#else
+  tone(BUZZER_PIN, frequency);
+#endif
+}
+
+void stopTone() {
+  toneSounding = false;
+#if USE_SOFTWARE_VOLUME
+  analogWrite(BUZZER_PIN, 0);
+  digitalWrite(BUZZER_PIN, LOW);  // hold LOW so the buzzer is silent and D8 stays strap-safe
+#else
+  noTone(BUZZER_PIN);
+#endif
+}
+
 void play(JsonObjectConst sound) {
   JsonArrayConst notes = sound["notes"].as<JsonArrayConst>();
   JsonArrayConst durations = sound["durations"].as<JsonArrayConst>();
@@ -142,26 +185,30 @@ void play(JsonObjectConst sound) {
       noteDuration = 1000 / divisor;
     }
 
-    if (frequency > 0) {
-      int toneDuration = tempo > 0 ? noteDuration * 9 / 10 : noteDuration;
-      tone(BUZZER_PIN, frequency, toneDuration);
-    }
+    // A note sounds for most of its slot, then a short gap articulates it from
+    // the next. Unlike tone(duration), PWM runs until stopped, so we time the
+    // sound and the gap explicitly here (this also matches the old tone timing).
+    int soundDuration = tempo > 0 ? noteDuration * 9 / 10 : noteDuration;
+    int gapDuration = tempo > 0 ? noteDuration - soundDuration : noteDuration * 0.30;
 
-    digitalWrite(LED_BUILTIN, LOW);
-    if (!cooperativeDelay(noteDuration)) {
+    if (frequency > 0) {
+      startTone(frequency);
+    }
+    digitalWrite(STATUS_LED_PIN, LOW);
+    if (!cooperativeDelay(soundDuration)) {
       break;
     }
-    digitalWrite(LED_BUILTIN, HIGH);
-    noTone(BUZZER_PIN);
-    if (tempo <= 0) {
-      if (!cooperativeDelay(noteDuration * 0.30)) {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    stopTone();
+    if (gapDuration > 0) {
+      if (!cooperativeDelay(gapDuration)) {
         break;
       }
     }
   }
 
-  noTone(BUZZER_PIN);
-  digitalWrite(LED_BUILTIN, HIGH);
+  stopTone();
+  digitalWrite(STATUS_LED_PIN, HIGH);
   playing = false;
   stopRequested = false;
 }
@@ -171,6 +218,12 @@ void play(JsonObjectConst sound) {
 namespace SoundPlayer {
 
 bool begin() {
+#if USE_SOFTWARE_VOLUME
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+  analogWriteRange(PWM_RANGE);
+#endif
+
   filesystemMounted = LittleFS.begin();
   if (!filesystemMounted) {
     LOG_PRINTLN("LittleFS mount failed. Upload the filesystem image.");
@@ -197,14 +250,17 @@ void setServiceCallback(ServiceCallback callback) {
 }
 
 bool isPlaying() {
-  return playing;
+  // A queued-but-not-yet-started sound counts as playing so callers (and the
+  // web status poll) never see a false idle in the gap before service() runs.
+  return playing || playPending;
 }
 
 void stop() {
+  playPending = false;
   if (playing) {
     stopRequested = true;
-    noTone(BUZZER_PIN);
-    digitalWrite(LED_BUILTIN, HIGH);
+    stopTone();
+    digitalWrite(STATUS_LED_PIN, HIGH);
     LOG_PRINTLN("Sound stopped");
   }
 }
@@ -231,6 +287,52 @@ bool playSelected() {
     return false;
   }
   return playByName(selectedSoundName);
+}
+
+bool requestPlay(const String &name) {
+  JsonDocument document;
+  if (!loadSoundDocument(document)) {
+    return false;
+  }
+  for (JsonObjectConst sound : document["sounds"].as<JsonArrayConst>()) {
+    if (name == sound["name"].as<const char *>()) {
+      pendingSoundName = name;
+      playPending = true;
+      return true;
+    }
+  }
+  return false;
+}
+
+void requestPlaySelected() {
+  if (selectedSoundName.isEmpty()) {
+    LOG_PRINTLN("No sound is selected");
+    return;
+  }
+  pendingSoundName = selectedSoundName;
+  playPending = true;
+}
+
+void service() {
+  if (playPending && !playing) {
+    playPending = false;
+    playByName(pendingSoundName);
+  }
+}
+
+void setVolume(int percent) {
+  volumePercent = constrain(percent, 0, 100);
+#if USE_SOFTWARE_VOLUME
+  // If a note is sounding right now, re-apply the duty so the change is heard
+  // immediately instead of only on the next note.
+  if (toneSounding) {
+    analogWrite(BUZZER_PIN, currentDuty());
+  }
+#endif
+}
+
+int getVolume() {
+  return volumePercent;
 }
 
 bool playByName(const String &name) {

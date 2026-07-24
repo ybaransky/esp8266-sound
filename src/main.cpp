@@ -1,16 +1,22 @@
 #include <Arduino.h>
 #include <OneButton.h>
 
+#include "build_time.h"
+#include "hardware.h"
 #include "sound_player.h"
 #include "web_portal.h"
 #include "log.h"
 
-const int BUTTON_PIN = D6;
 OneButton button(BUTTON_PIN, true, true);
-bool playRequested = false;
 
-void serviceButton() {
+// Runs repeatedly while a sound is playing (playback blocks the main loop).
+// It services both the button and the web server so a physical or web Stop
+// can be received mid-playback. Safe from reentrancy because playback is
+// always started from loop() via SoundPlayer::service(), never from inside an
+// HTTP handler.
+void serviceDuringPlayback() {
   button.tick();
+  WebPortal::tick();
 }
 
 void onButtonPress() {
@@ -21,18 +27,18 @@ void onButtonPress() {
   }
 
   LOG_PRINTLN("button: play");
-  playRequested = true;
+  SoundPlayer::requestPlaySelected();
 }
 
 void setup() {
   Serial.begin(74880);
   LOG_BLANK_LINE();
-  LOG_PRINTF("Firmware built: %s %s", __DATE__, __TIME__);
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);
+  LOG_PRINTF("Firmware built: %s", BUILD_TIME);
+  pinMode(STATUS_LED_PIN, OUTPUT);
+  digitalWrite(STATUS_LED_PIN, HIGH);
 
   button.attachPress(onButtonPress);
-  SoundPlayer::setServiceCallback(serviceButton);
+  SoundPlayer::setServiceCallback(serviceDuringPlayback);
   SoundPlayer::begin();
   WebPortal::begin();
 }
@@ -40,9 +46,6 @@ void setup() {
 void loop() {
   WebPortal::tick();
   button.tick();
-  if (playRequested) {
-    playRequested = false;
-    SoundPlayer::playSelected();
-  }
+  SoundPlayer::service();
   yield();
 }
